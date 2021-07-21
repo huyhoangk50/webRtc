@@ -10,14 +10,17 @@ const CreateRoom = (props) => {
     const userStream = useRef();
 
     useEffect(() => {
-        navigator.mediaDevices.getUserMedia({audio: true, video: true}).then(stream => {
+        navigator.mediaDevices.getUserMedia({video: true}).then(stream => {
             userVideo.current.srcObject = stream;
             userStream.current = stream;
 
             socketRef.current = io.connect("/");
             socketRef.current.emit("join room", props.match.params.roomID);
 
+            // người join sau sẽ nhận được bản tin other user,
+            // người join trước thì sẽ không nhận được bản tin này, do code không nhảy vào đây
             socketRef.current.on('other user', userID => {
+                console.log(`other user: `, userID)
                 callUser(userID);
                 otherUser.current = userID;
             });
@@ -35,12 +38,16 @@ const CreateRoom = (props) => {
 
     }, []);
 
+    // người vào sau tạo peer connection
+    // gửi offer đến đối tượng dựa vào userID
+    // sau khi tạo peer thì lấy track (video , )audio lấy từ webcam gắn vào peer đó
     function callUser(userID) {
         peerRef.current = createPeer(userID);
         userStream.current.getTracks().forEach(track => peerRef.current.addTrack(track, userStream.current));
     }
 
     function createPeer(userID) {
+        console.log('CREATE PEER userID: ', userID)
         const peer = new RTCPeerConnection({
             iceServers: [
                 {
