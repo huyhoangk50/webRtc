@@ -2,134 +2,78 @@ import React, {useEffect, useRef} from "react";
 import io from "socket.io-client";
 
 const CreateRoom = (props) => {
-    const userVideo = useRef();
-    const partnerVideo = useRef();
-    const peerRef = useRef();
-    const socketRef = useRef();
-    const otherUser = useRef();
-    const userStream = useRef();
+    const userVideoRef = useRef();
+    const remoteVideoRef = useRef();
+    const peerRef = useRef()
+    const textRef = useRef()
 
     useEffect(() => {
         navigator.mediaDevices.getUserMedia({video: true}).then(stream => {
-            userVideo.current.srcObject = stream;
-            userStream.current = stream;
+            userVideoRef.current.srcObject = stream;
+            peerRef.current = new RTCPeerConnection();
+            peerRef.current.addStream(stream)
 
-            socketRef.current = io.connect("/");
-            socketRef.current.emit("join room", props.match.params.roomID);
-
-            // người join sau sẽ nhận được bản tin other user,
-            // người join trước thì sẽ không nhận được bản tin này, do code không nhảy vào đây
-            socketRef.current.on('other user', userID => {
-                console.log(`other user: `, userID)
-                callUser(userID);
-                otherUser.current = userID;
-            });
-
-            socketRef.current.on("user joined", userID => {
-                otherUser.current = userID;
-            });
-
-            socketRef.current.on("offer", handleRecieveCall);
-
-            socketRef.current.on("answer", handleAnswer);
-
-            socketRef.current.on("ice-candidate", handleNewICECandidateMsg);
+            peerRef.current.ontrack = handleAddTrack;
+            peerRef.current.onicecandidate = handleIceCandidate;
         });
-
     }, []);
 
-    // người vào sau tạo peer connection
-    // gửi offer đến đối tượng dựa vào userID
-    // sau khi tạo peer thì lấy track (video , )audio lấy từ webcam gắn vào peer đó
-    function callUser(userID) {
-        peerRef.current = createPeer(userID);
-        userStream.current.getTracks().forEach(track => peerRef.current.addTrack(track, userStream.current));
+    function handleAddTrack(e) {
+        console.log("handleAddTrack")
+        remoteVideoRef.current.srcObject = e.streams[0]
     }
 
-    function createPeer(userID) {
-        console.log('CREATE PEER userID: ', userID)
-        const peer = new RTCPeerConnection({
-            iceServers: [
-                {
-                    urls: "stun:stun.stunprotocol.org"
-                },
-                {
-                    urls: 'turn:numb.viagenie.ca',
-                    credential: 'muazkh',
-                    username: 'webrtc@live.com'
-                },
-            ]
-        });
-
-        peer.onicecandidate = handleICECandidateEvent;
-        peer.ontrack = handleTrackEvent;
-        peer.onnegotiationneeded = () => handleNegotiationNeededEvent(userID);
-
-        return peer;
-    }
-
-    function handleNegotiationNeededEvent(userID) {
-        peerRef.current.createOffer().then(offer => {
-            return peerRef.current.setLocalDescription(offer);
-        }).then(() => {
-            const payload = {
-                target: userID,
-                caller: socketRef.current.id,
-                sdp: peerRef.current.localDescription
-            };
-            socketRef.current.emit("offer", payload);
-        }).catch(e => console.log(e));
-    }
-
-    function handleRecieveCall(incoming) {
-        peerRef.current = createPeer();
-        const desc = new RTCSessionDescription(incoming.sdp);
-        peerRef.current.setRemoteDescription(desc).then(() => {
-            userStream.current.getTracks().forEach(track => peerRef.current.addTrack(track, userStream.current));
-        }).then(() => {
-            return peerRef.current.createAnswer();
-        }).then(answer => {
-            return peerRef.current.setLocalDescription(answer);
-        }).then(() => {
-            const payload = {
-                target: incoming.caller,
-                caller: socketRef.current.id,
-                sdp: peerRef.current.localDescription
-            }
-            socketRef.current.emit("answer", payload);
-        })
-    }
-
-    function handleAnswer(message) {
-        const desc = new RTCSessionDescription(message.sdp);
-        peerRef.current.setRemoteDescription(desc).catch(e => console.log(e));
-    }
-
-    function handleICECandidateEvent(e) {
+    // trigger when a new candidate is returned
+    function handleIceCandidate(e) {
         if (e.candidate) {
-            const payload = {
-                target: otherUser.current,
-                candidate: e.candidate,
-            }
-            socketRef.current.emit("ice-candidate", payload);
+            console.log(JSON.stringify(e.candidate))
         }
     }
 
-    function handleNewICECandidateMsg(incoming) {
-        const candidate = new RTCIceCandidate(incoming);
-
-        peerRef.current.addIceCandidate(candidate)
-            .catch(e => console.log(e));
+    function createOffer() {
+        peerRef.current.createOffer({offerToReceiveVideo: true})
+            .then(desc => {
+                console.log(`desc: \n`, JSON.stringify(desc))
+                peerRef.current.setLocalDescription(desc).catch(err => {
+                    console.log(`setLocalDescription failed: `, err)
+                })
+            })
     }
 
-    function handleTrackEvent(e) {
-        partnerVideo.current.srcObject = e.streams[0];
-    };
+    function setRemoteDescription() {
+        console.log("set remote description successfully")
+        const desc = new RTCSessionDescription(JSON.parse(textRef.current.value))
+        peerRef.current.setRemoteDescription(desc)
+    }
+
+    function answer() {
+        peerRef.current.createAnswer().then(answer => {
+            console.log(`Create answer `, JSON.stringify(answer))
+            peerRef.current.setLocalDescription(answer).catch(err => {
+                console.log(`Create answer failed `, err)
+            })
+        })
+    }
+
+    function setIceCandidate() {
+        const iceCandidate = new RTCIceCandidate(JSON.parse(textRef.current.value))
+        peerRef.current.addIceCandidate(iceCandidate).catch(err => {
+            console.log(`AddIceCandidate error `, err)
+        })
+    }
 
     return (
         <div>
-            <video autoPlay ref={userVideo}/>
-            <video autoPlay ref={partnerVideo}/>
+            <video autoPlay ref={userVideoRef}/>
+            <video autoPlay ref={remoteVideoRef}/>
+            <br/>
+            <button onClick={createOffer}>Create offer</button>
+            <button onClick={answer}>Answer</button>
+            <br/>
+            <textarea ref={textRef} rows={50} cols={70}/>
+            <br/>
+            <button onClick={setRemoteDescription}>Set Remote description</button>
+            <button onClick={setIceCandidate}>Set Ice candidate</button>
         </div>
     );
 }
