@@ -11,16 +11,22 @@ const CreateRoom = (props) => {
         navigator.mediaDevices.getUserMedia({video: true}).then(stream => {
             userVideoRef.current.srcObject = stream;
             peerRef.current = new RTCPeerConnection();
-            peerRef.current.addStream(stream)
+            stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream))
+            // peerRef.current.addStream(stream)
 
             peerRef.current.ontrack = handleAddTrack;
             peerRef.current.onicecandidate = handleIceCandidate;
+            peerRef.current.onnegotiationneeded = handleNegotiationNeededEvent;
         });
     }, []);
 
     function handleAddTrack(e) {
         console.log("handleAddTrack")
         remoteVideoRef.current.srcObject = e.streams[0]
+    }
+
+    function handleNegotiationNeededEvent(e) {
+        console.log('handleNegotiationNeededEvent: ', e)
     }
 
     // trigger when a new candidate is returned
@@ -56,6 +62,7 @@ const CreateRoom = (props) => {
     }
 
     function setIceCandidate() {
+        console.log(`Set ice candidate`)
         const iceCandidate = new RTCIceCandidate(JSON.parse(textRef.current.value))
         peerRef.current.addIceCandidate(iceCandidate).catch(err => {
             console.log(`AddIceCandidate error `, err)
