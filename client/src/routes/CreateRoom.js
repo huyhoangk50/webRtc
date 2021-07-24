@@ -30,17 +30,21 @@ const CreateRoom = (props) => {
             socketRef.current.on('offerOrAnswer', payload => {
                 console.log('on offerOrAnswer: ', payload)
                 textRef.current.value = JSON.stringify(payload)
+                const desc = new RTCSessionDescription(payload)
+                peerRef.current.setRemoteDescription(desc).then(() => {
+                    console.log('set remote description success')
+                }).catch(err => {
+                    console.log('set remote description failed ', err)
+                })
             })
 
             socketRef.current.on('ice-candidate', payload => {
-                console.log('ice candidate: ', JSON.stringify(payload))
-                iceCandidates.unshift(payload)
-                // const iceCandidate = new RTCIceCandidate(payload)
-                // peerRef.current.addIceCandidate(iceCandidate).then(() => {
-                //     console.log('set ice-candidate success')
-                // }).catch(err => {
-                //     console.log('set ice-candidate failed: ', err.name)
-                // })
+                const iceCandidate = new RTCIceCandidate(payload)
+                peerRef.current.addIceCandidate(iceCandidate).then(() => {
+                    console.log('set ice-candidate success')
+                }).catch(err => {
+                    console.log('set ice-candidate failed: ', err.name)
+                })
             })
 
             peerRef.current.ontrack = handleAddTrack;
@@ -78,23 +82,6 @@ const CreateRoom = (props) => {
             })
     }
 
-    // Ice candidate must be set after set remote description
-    function setRemoteDescription() {
-        console.log("set remote description successfully")
-        const desc = new RTCSessionDescription(JSON.parse(textRef.current.value))
-        peerRef.current.setRemoteDescription(desc).then(() => {
-            console.log('setRemoteDescription Success')
-            while (iceCandidates.length > 0) {
-                const iceCandidate = iceCandidates.shift()
-                peerRef.current.addIceCandidate(new RTCIceCandidate(iceCandidate)).then(() => {
-                    console.log(`Add ice candidate success`)
-                }).catch(err => {
-                    console.log(`Add ice candidate failed `, err.name)
-                })
-            }
-        })
-    }
-
     function answer() {
         peerRef.current.createAnswer().then(answer => {
             console.log(`Create answer `, JSON.stringify(answer))
@@ -103,14 +90,6 @@ const CreateRoom = (props) => {
             }).catch(err => {
                 console.log(`Create answer failed `, err)
             })
-        })
-    }
-
-    function setIceCandidate() {
-        console.log(`Set ice candidate`)
-        const iceCandidate = new RTCIceCandidate(JSON.parse(textRef.current.value))
-        peerRef.current.addIceCandidate(iceCandidate).catch(err => {
-            console.log(`AddIceCandidate error `, err)
         })
     }
 
@@ -124,8 +103,6 @@ const CreateRoom = (props) => {
             <br/>
             <textarea ref={textRef} rows={50} cols={70}/>
             <br/>
-            <button onClick={setRemoteDescription}>Set Remote description</button>
-            <button onClick={setIceCandidate}>Set Ice candidate</button>
         </div>
     );
 }
