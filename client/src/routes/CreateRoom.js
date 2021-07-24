@@ -25,10 +25,11 @@ const Video = (props) => {
     const ref = useRef();
 
     useEffect(() => {
-        props.peer.on('stream', stream => {
-            console.log(`stream: `, stream);
-            ref.current.srcObject = stream;
-        });
+        console.log('props.peer: ', props.peer)
+        props.peer.ontrack = (e) => {
+            console.log(`stream: `, e.stream);
+            ref.current.srcObject = e.streams[0];
+        };
     }, []);
 
     return (
@@ -98,6 +99,8 @@ const CreateRoom = (props) => {
                     });
                     stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream))
 
+                    socketRef.current.emit(event.BROAD_CASTER_JOIN_ROOM, roomID)
+
                     peerRef.current.createOffer({offerToReceiveVideo: true})
                         .then(desc => {
                             console.log(`desc: \n`, JSON.stringify(desc))
@@ -111,21 +114,31 @@ const CreateRoom = (props) => {
                             })
                         })
 
-                    socketRef.current.emit(event.OFFER_FROM_BROADCASTER)
-
                     socketRef.current.on(event.OFFER_FROM_VIEWER, payload => {
                         console.log('on offer: ', payload)
-                        textRef.current.value = JSON.stringify(payload)
-                        const desc = new RTCSessionDescription(payload)
-                        peerRef.current.setRemoteDescription(desc).then(() => {
-                            console.log('set remote description success')
+                        const {desc, callerID} = payload
+                        peerRef.current.setRemoteDescription(new RTCSessionDescription(desc)).then(() => {
+                            console.log('set remote for broadcaster description success')
+                        }).then(() => {
+                            return peerRef.current.createAnswer()
+                        }).then(answer => {
+                            return peerRef.current.setLocalDescription(answer)
+                        }).then(() => {
+                            const payload = {
+                                callerID,
+                                roomID,
+                                desc: peerRef.current.localDescription
+                            }
+                            console.log('payload: ', JSON.stringify(payload))
+                            socketRef.current.emit(event.ANSWER_FROM_BROADCASTER, payload);
                         }).catch(err => {
-                            console.log('set remote description failed ', err)
+                            console.log('set remote description for broadcaster failed ', err)
                         })
                     })
 
-                    socketRef.current.on('ice-candidate', payload => {
-                        const iceCandidate = new RTCIceCandidate(payload)
+                    socketRef.current.on(event.ICE_CANDIDATE_FROM_VIEWER, payload => {
+                        const {ice} = payload
+                        const iceCandidate = new RTCIceCandidate(ice)
                         peerRef.current.addIceCandidate(iceCandidate).then(() => {
                             console.log('set ice-candidate success')
                         }).catch(err => {
@@ -134,7 +147,7 @@ const CreateRoom = (props) => {
                     })
 
                     peerRef.current.ontrack = handleAddTrack;
-                    peerRef.current.onicecandidate = handleIceCandidate;
+                    peerRef.current.onicecandidate = handleBroadCasterSendIceCandidate;
                 });
                 break
             case "viewer":
@@ -155,6 +168,24 @@ const CreateRoom = (props) => {
                     ]
                 })
 
+                peers.push({
+                    peer: peerRef.current
+                })
+
+                // viewer create offer
+                peerRef.current.createOffer({offerToReceiveVideo: true})
+                    .then(desc => {
+                        console.log(`desc: \n`, JSON.stringify(desc))
+                        peerRef.current.setLocalDescription(desc).then(() => {
+                                const payload = {roomID, desc}
+                                console.log(`payload: `, payload)
+                                socketRef.current.emit(event.OFFER_FROM_VIEWER, payload)
+                            }
+                        ).catch(err => {
+                            console.log(`setLocalDescription failed: `, err)
+                        })
+                    })
+
                 // Nhận sự kiện offer từ server
                 // SetRemoteDescription cho các viewer peer
                 socketRef.current.on(event.OFFER_FROM_BROADCASTER, payload => {
@@ -167,17 +198,26 @@ const CreateRoom = (props) => {
                     })
                 })
 
-                socketRef.current.on('ice-candidate', payload => {
+                socketRef.current.on(event.ANSWER_FROM_BROADCASTER, payload => {
+                    const {desc} = payload
+                    peerRef.current.setRemoteDescription(new RTCSessionDescription(desc)).then(() => {
+                        console.log('set remote description success')
+                    }).catch(err => {
+                        console.log('set remote description failed ', err)
+                    })
+                })
+
+                socketRef.current.on(event.ICE_CANDIDATE_FROM_BROADCASTER, payload => {
                     const iceCandidate = new RTCIceCandidate(payload)
                     peerRef.current.addIceCandidate(iceCandidate).then(() => {
-                        console.log('set ice-candidate success')
+                        console.log(`set ice-candidate for viewer success`)
                     }).catch(err => {
                         console.log('set ice-candidate failed: ', err.name)
                     })
                 })
 
-                peerRef.current.ontrack = handleAddTrack;
-                peerRef.current.onicecandidate = handleViewerReceiveIceCandidate;
+                // peerRef.current.ontrack = handleAddTrack;
+                peerRef.current.onicecandidate = handleViewerSendCandidate;
                 break
         }
 
@@ -189,20 +229,28 @@ const CreateRoom = (props) => {
         // remoteVideoRef.current.srcObject = e.streams[0]
     }
 
-    // trigger when a new candidate is returned
-    function handleViewerReceiveIceCandidate(e) {
+    // trigger when create offer
+    // ice candidate event will trigger in background
+    function handleViewerSendCandidate(e) {
         if (e.candidate) {
             console.log(JSON.stringify(e.candidate))
-            socketRef.current.emit(event.ICE_CANDIDATE_FROM_VIEWER, e.candidate)
+            socketRef.current.emit(event.ICE_CANDIDATE_FROM_VIEWER, {roomID, ice: e.candidate})
+        }
+    }
+
+    function handleBroadCasterSendIceCandidate(e) {
+        if (e.candidate) {
+            console.log(JSON.stringify(e.candidate))
+            socketRef.current.emit(event.ICE_CANDIDATE_FROM_BROADCASTER, {roomID, ice: e.candidate})
         }
     }
 
     return (
         <Container>
             {
-                peers.length > 0 && peers.map(peer => {
+                isViewer && peers.length > 0 && peers.map(peer => {
                     return (
-                        <Video key={peer.peerID} peer={peer.peer}/>
+                        <Video peer={peer.peer}/>
                     )
                 })
 
