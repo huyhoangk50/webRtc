@@ -78,7 +78,7 @@ const CreateRoom = (props) => {
     }, [role]);
 
     useEffect(() => {
-        socketRef.current = io.connect('/')
+        socketRef.current = io.connect('ws://localhost:8000')
 
         switch (role) {
             case "broadcaster":

@@ -3,7 +3,7 @@ const http = require("http");
 const app = express();
 const server = http.createServer(app);
 const socket = require("socket.io");
-const io = socket(server);
+const io = socket(server, {cors: {origin: '*'}});
 
 const event = {
     BROAD_CASTER_JOIN_ROOM: 'broadcaster-join-room',
