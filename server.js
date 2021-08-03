@@ -11,7 +11,7 @@ const event = {
     ANSWER_FROM_BROADCASTER: 'answer-from-broadcaster',
     ICE_CANDIDATE_FROM_BROADCASTER: 'ice-candidate-from-broadcaster',
 
-    VIEWER_JOIN_ROOM: 'viewer_join_room',
+    VIEWER_JOIN_ROOM: 'viewer-join-room',
     OFFER_FROM_VIEWER: 'offer-from-viewer',
     ANSWER_FROM_VIEWER: 'answer-from-viewer',
     ICE_CANDIDATE_FROM_VIEWER: 'ice-candidate-from-viewer'
@@ -47,10 +47,16 @@ io.on("connection", socket => {
         console.log(`roomID: ${roomID}  broadcaster in room: ${broadcasters[roomID]}`)
         if (broadcasters[roomID]?.length > 0) {
             broadcasters[roomID].forEach(broadcaster => {
-                io.to(broadcaster).emit(event.OFFER_FROM_VIEWER, {desc: desc, callerID: socket.id})
+                io.to(broadcaster).emit(event.OFFER_FROM_VIEWER, {desc, callerID: socket.id})
             })
         }
     });
+
+    // payload: {desc, broadcasterID, roomID}
+    socket.on(event.ANSWER_FROM_VIEWER, payload => {
+        const {desc, broadcasterID, roomID} = payload
+        io.to(broadcasterID).emit(event.ANSWER_FROM_VIEWER, {desc, viewerID: socket.id})
+    })
 
     socket.on(event.ICE_CANDIDATE_FROM_VIEWER, payload => {
         console.log(`ice candidate from viewer: `, payload.ice)
@@ -64,6 +70,7 @@ io.on("connection", socket => {
 
     socket.on(event.VIEWER_JOIN_ROOM, roomID => {
         console.log(`event ${event.VIEWER_JOIN_ROOM}`)
+        // lưu thông tin viewer vào list viewer
         if (viewers[roomID]) {
             const length = viewers[roomID].length;
             if (length >= 3) {
@@ -75,11 +82,20 @@ io.on("connection", socket => {
         } else {
             viewers[roomID] = [socket.id]
         }
+
+        // Lấy thông tin của broadcaster trong room
+        // Gửi sự kiện đến tất cả broadcaster thông báo có viewer mới join room
+        if (broadcasters[roomID]?.length > 0) {
+            broadcasters[roomID].forEach(broadcaster => {
+                io.to(broadcaster).emit(event.VIEWER_JOIN_ROOM, {viewerID: socket.id})
+            })
+        }
     })
 
     // viewer receive event from broadcaster
     // 1. Get list of all viewer
     // 2. Send offer to all viewer
+    // payload: {roomID, desc, viewerID}
     socket.on(event.OFFER_FROM_BROADCASTER, payload => {
         if (!payload) {
             console.log("receive offer from broadcaster event with data is: ", payload)
@@ -87,13 +103,9 @@ io.on("connection", socket => {
         }
 
         console.log("receive offer from broadcaster event")
-        const {roomID, desc} = payload
+        const {roomID, desc, viewerID} = payload
         console.log('viewer in room: ', viewers[roomID])
-        if (viewers[roomID]?.length > 0) {
-            viewers[roomID].forEach(viewer => {
-                io.to(viewer).emit(event.OFFER_FROM_BROADCASTER, {desc: desc})
-            })
-        }
+        io.to(viewerID).emit(event.OFFER_FROM_BROADCASTER, {desc: desc, viewerID, broadcasterID: socket.id})
     });
 
     // Answer from broadcaster
@@ -110,9 +122,9 @@ io.on("connection", socket => {
 
     socket.on(event.ICE_CANDIDATE_FROM_BROADCASTER, payload => {
         const {roomID, ice} = payload
-        if (broadcasters[roomID]?.length > 0) {
-            broadcasters[roomID].forEach(broadcaster => {
-                io.to(broadcaster).emit(event.ICE_CANDIDATE_FROM_BROADCASTER, {ice: ice})
+        if (viewers[roomID]?.length > 0) {
+            viewers[roomID].forEach(viewer => {
+                io.to(viewer).emit(event.ICE_CANDIDATE_FROM_BROADCASTER, {ice: ice})
             })
         }
     })
