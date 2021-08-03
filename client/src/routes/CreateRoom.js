@@ -133,45 +133,19 @@ const CreateRoom = (props) => {
                             })
                         })
 
+                        socketRef.current.on(event.ICE_CANDIDATE_FROM_VIEWER, payload => {
+                            const {ice} = payload
+                            const iceCandidate = new RTCIceCandidate(ice)
+                            peer.addIceCandidate(iceCandidate).then(() => {
+                                console.log('set ice-candidate success')
+                            }).catch(err => {
+                                console.log('set ice-candidate failed: ', err.name)
+                            })
+                        })
+
                         peer.ontrack = handleAddTrack;
                         peer.onicecandidate = handleBroadCasterSendIceCandidate;
                     })
-
-
-                    // socketRef.current.on(event.OFFER_FROM_VIEWER, payload => {
-                    //     console.log('on offer: ', payload)
-                    //     const {desc, callerID} = payload
-                    //     peerRef.current.setRemoteDescription(new RTCSessionDescription(desc)).then(() => {
-                    //         console.log('set remote for broadcaster description success')
-                    //     }).then(() => {
-                    //         return peerRef.current.createAnswer()
-                    //     }).then(answer => {
-                    //         return peerRef.current.setLocalDescription(answer)
-                    //     }).then(() => {
-                    //         const payload = {
-                    //             callerID,
-                    //             roomID,
-                    //             desc: peerRef.current.localDescription
-                    //         }
-                    //         console.log('payload: ', JSON.stringify(payload))
-                    //         socketRef.current.emit(event.ANSWER_FROM_BROADCASTER, payload);
-                    //     }).catch(err => {
-                    //         console.log('set remote description for broadcaster failed ', err)
-                    //     })
-                    // })
-                    //
-                    // socketRef.current.on(event.ICE_CANDIDATE_FROM_VIEWER, payload => {
-                    //     const {ice} = payload
-                    //     const iceCandidate = new RTCIceCandidate(ice)
-                    //     peerRef.current.addIceCandidate(iceCandidate).then(() => {
-                    //         console.log('set ice-candidate success')
-                    //     }).catch(err => {
-                    //         console.log('set ice-candidate failed: ', err.name)
-                    //     })
-                    // })
-
-                    // peerRef.current.ontrack = handleAddTrack;
-                    // peerRef.current.onicecandidate = handleBroadCasterSendIceCandidate;
                 });
                 break
             case "viewer":
@@ -191,10 +165,11 @@ const CreateRoom = (props) => {
                         peer: peer
                     })
 
-                    peers.push({peer, peerID: broadcasterID})
-                    setPeers(peers)
+                    // peers.push({peer, peerID: broadcasterID})
+                    // setPeers(peers)
+                    setPeers(peers => [...peers, {peer, peerID: broadcasterID}])
 
-                    const remoteDescription = new RTCSessionDescription(desc)
+                    cmoteDescription = new RTCSessionDescription(desc)
                     peer.setRemoteDescription(remoteDescription).then(() => {
                         console.log('Set REMOTE description success')
                         return peer.createAnswer()
@@ -216,46 +191,10 @@ const CreateRoom = (props) => {
                     })
 
                     peer.ontrack = handleAddTrack
+                    peer.onicecandidate = handleViewerSendCandidate;
                 })
 
-                // viewer create offer
-                // peerRef.current.createOffer({offerToReceiveVideo: true})
-                //     .then(desc => {
-                //         console.log(`desc: \n`, JSON.stringify(desc))
-                //         peerRef.current.setLocalDescription(desc).then(() => {
-                //                 const payload = {roomID, desc}
-                //                 console.log(`payload: `, payload)
-                //                 socketRef.current.emit(event.OFFER_FROM_VIEWER, payload)
-                //             }
-                //         ).catch(err => {
-                //             console.log(`setLocalDescription failed: `, err)
-                //         })
-                //     })
 
-                // Nhận sự kiện offer từ server
-                // SetRemoteDescription cho các viewer peer
-                // socketRef.current.on(event.OFFER_FROM_BROADCASTER, payload => {
-                //     console.log('on offer: ', payload)
-                //     const desc = new RTCSessionDescription(payload.desc)
-                //     peerRef.current.setRemoteDescription(desc).then(() => {
-                //         console.log('set remote description success')
-                //     }).catch(err => {
-                //         console.log('set remote description failed ', err)
-                //     })
-                // })
-
-                // socketRef.current.on(event.ANSWER_FROM_BROADCASTER, payload => {
-                //     const {desc} = payload
-                //     peerRef.current.setRemoteDescription(new RTCSessionDescription(desc)).then(() => {
-                //         console.log('set remote description success')
-                //     }).catch(err => {
-                //         console.log('set remote description failed ', err)
-                //     })
-                // })
-
-
-                // peerRef.current.ontrack = handleAddTrack;
-                // peerRef.current.onicecandidate = handleViewerSendCandidate;
                 break
         }
 
