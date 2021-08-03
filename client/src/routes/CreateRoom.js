@@ -169,7 +169,7 @@ const CreateRoom = (props) => {
                     // setPeers(peers)
                     setPeers(peers => [...peers, {peer, peerID: broadcasterID}])
 
-                    cmoteDescription = new RTCSessionDescription(desc)
+                    const remoteDescription = new RTCSessionDescription(desc)
                     peer.setRemoteDescription(remoteDescription).then(() => {
                         console.log('Set REMOTE description success')
                         return peer.createAnswer()
