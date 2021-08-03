@@ -22,7 +22,7 @@ const viewers = {};
 
 
 io.on("connection", socket => {
-    socket.on(event.BROAD_CASTER_JOIN_ROOM, roomID => {
+    socket.on(event.BROAD_CASTER_JOIN_ROOM, ({roomID}) => {
         console.log(`event ${event.BROAD_CASTER_JOIN_ROOM}`)
         if (broadcasters[roomID]) {
             const length = broadcasters[roomID].length;
@@ -68,7 +68,7 @@ io.on("connection", socket => {
         }
     })
 
-    socket.on(event.VIEWER_JOIN_ROOM, roomID => {
+    socket.on(event.VIEWER_JOIN_ROOM, ({roomID}) => {
         console.log(`event ${event.VIEWER_JOIN_ROOM}`)
         // lưu thông tin viewer vào list viewer
         if (viewers[roomID]) {

@@ -86,7 +86,7 @@ const CreateRoom = (props) => {
             case "broadcaster":
                 console.log("role: ", role)
                 // Send event broadcaster join room
-                socketRef.current.emit(event.BROAD_CASTER_JOIN_ROOM, roomID)
+                socketRef.current.emit(event.BROAD_CASTER_JOIN_ROOM, {roomID})
 
                 navigator.mediaDevices.getUserMedia({video: true}).then(stream => {
                     // userVideoRef.current.srcObject = stream;
@@ -151,7 +151,7 @@ const CreateRoom = (props) => {
             case "viewer":
                 console.log("role: ", role)
 
-                socketRef.current.emit(event.VIEWER_JOIN_ROOM, roomID)
+                socketRef.current.emit(event.VIEWER_JOIN_ROOM, {roomID})
 
                 // Recive offer from broadcaster
                 // {desc: desc, viewerID, broadcasterID: socket.id}
