@@ -27,7 +27,7 @@ const Video = (props) => {
     useEffect(() => {
         console.log('props.peer: ', props.peer)
         props.peer.ontrack = (e) => {
-            console.log(`stream: `, e.stream);
+            console.log(`stream: `, e.streams[0]);
             ref.current.srcObject = e.streams[0];
         };
     }, []);
