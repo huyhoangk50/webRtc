@@ -46,7 +46,9 @@ const event = {
     VIEWER_JOIN_ROOM: 'viewer-join-room',
     OFFER_FROM_VIEWER: 'offer-from-viewer',
     ANSWER_FROM_VIEWER: 'answer-from-viewer',
-    ICE_CANDIDATE_FROM_VIEWER: 'ice-candidate-from-viewer'
+    ICE_CANDIDATE_FROM_VIEWER: 'ice-candidate-from-viewer',
+
+    CLEAR_ALL: 'clear-all'
 }
 
 
@@ -85,6 +87,7 @@ const CreateRoom = (props) => {
         switch (role) {
             case "broadcaster":
                 console.log("role: ", role)
+                socketRef.current.emit(event.CLEAR_ALL, {roomID})
                 // Send event broadcaster join room
                 socketRef.current.emit(event.BROAD_CASTER_JOIN_ROOM, {roomID})
 
