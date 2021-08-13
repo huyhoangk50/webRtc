@@ -82,7 +82,7 @@ const CreateRoom = (props) => {
     console.log('peers: ', peers)
 
     useEffect(() => {
-        socketRef.current = io.connect('ws://localhost:8000')
+        socketRef.current = io.connect('wss://vgps.vn')
 
         switch (role) {
             case "broadcaster":
