@@ -1,3 +1,5 @@
+import {inspect} from "util";
+
 const express = require("express");
 const http = require("http");
 const app = express();
@@ -128,6 +130,35 @@ io.on("connection", socket => {
             })
         }
     })
+
+    socket.on('disconnect', () => {
+        const roomID = socketToRoom.get(socket.id);
+
+        const usersInRoom = viewers[roomID];
+        if (usersInRoom && viewers[roomID].indexOf(socket.id) !== -1) {
+            const remainUsers = usersInRoom.filter(id => id !== socket.id);
+            viewers[roomID] = remainUsers;
+            delete socketToRoom[socket.id];
+            console.log(`Emit events viewer left. Viewer in room: ${inspect(viewers[roomID])} `);
+            socket.broadcast.emit(event.VIEWER_LEFT, { viewerID: socket.id });
+            return;
+        }
+
+        const broadcastersInRoom = broadcasters[roomID];
+        if (broadcastersInRoom && broadcasters[roomID].indexOf(socket.id) !== -1) {
+            console.log(`broadcastersInRoom: ${inspect(broadcastersInRoom)} id: ${socket.id}`);
+            const remainBroadcaster = broadcastersInRoom.filter(id => id !== socket.id);
+            broadcasters[roomID] = remainBroadcaster;
+            delete socketToRoom[socket.id];
+            console.log(`Emit events broadcaster left broadcaster remain: ${inspect(broadcasters[roomID])}`);
+            if (viewers[roomID]?.length > 0) {
+                viewers[roomID].forEach(viewer => {
+                    io.to(viewer).emit(event.BROADCASTER_LEFT, { broadcasterID: socket.id });
+                });
+            }
+            return;
+        }
+    });
 });
 
 
