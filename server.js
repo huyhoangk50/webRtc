@@ -1,11 +1,11 @@
-import {inspect} from "util";
-
 const express = require("express");
 const http = require("http");
 const app = express();
 const server = http.createServer(app);
 const socket = require("socket.io");
+const {inspect} = require('util');
 const io = socket(server, {cors: {origin: '*'}});
+
 
 const event = {
     BROAD_CASTER_JOIN_ROOM: 'broadcaster-join-room',
@@ -16,11 +16,15 @@ const event = {
     VIEWER_JOIN_ROOM: 'viewer-join-room',
     OFFER_FROM_VIEWER: 'offer-from-viewer',
     ANSWER_FROM_VIEWER: 'answer-from-viewer',
-    ICE_CANDIDATE_FROM_VIEWER: 'ice-candidate-from-viewer'
+    ICE_CANDIDATE_FROM_VIEWER: 'ice-candidate-from-viewer',
+
+    VIEWER_LEFT: 'viewer-left',
+    BROADCASTER_LEFT: 'broadcaster-left',
 }
 
 const broadcasters = {};
 const viewers = {};
+const socketToRoom = new Map();
 
 
 io.on("connection", socket => {
@@ -37,6 +41,7 @@ io.on("connection", socket => {
         } else {
             broadcasters[roomID] = [socket.id]
         }
+        socketToRoom.set(socket.id, roomID);
         console.log(broadcasters[roomID])
     });
 
@@ -85,6 +90,7 @@ io.on("connection", socket => {
             viewers[roomID] = [socket.id]
         }
 
+        socketToRoom.set(socket.id, roomID);
         // Lấy thông tin của broadcaster trong room
         // Gửi sự kiện đến tất cả broadcaster thông báo có viewer mới join room
         if (broadcasters[roomID]?.length > 0) {
@@ -140,7 +146,7 @@ io.on("connection", socket => {
             viewers[roomID] = remainUsers;
             delete socketToRoom[socket.id];
             console.log(`Emit events viewer left. Viewer in room: ${inspect(viewers[roomID])} `);
-            socket.broadcast.emit(event.VIEWER_LEFT, { viewerID: socket.id });
+            socket.broadcast.emit(event.VIEWER_LEFT, {viewerID: socket.id});
             return;
         }
 
@@ -153,7 +159,7 @@ io.on("connection", socket => {
             console.log(`Emit events broadcaster left broadcaster remain: ${inspect(broadcasters[roomID])}`);
             if (viewers[roomID]?.length > 0) {
                 viewers[roomID].forEach(viewer => {
-                    io.to(viewer).emit(event.BROADCASTER_LEFT, { broadcasterID: socket.id });
+                    io.to(viewer).emit(event.BROADCASTER_LEFT, {broadcasterID: socket.id});
                 });
             }
             return;
