@@ -30,9 +30,9 @@ const Video = (props) => {
     //   ref.current.srcObject = e.streams[0];
     // };
     props.peer.onaddstream = (event) => {
-      console.log("onaddstream", event.stream)
-      ref.current.srcObject = event.stream
-    }
+      console.log("onaddstream", event.stream);
+      ref.current.srcObject = event.stream;
+    };
   }, []);
 
   return <StyledVideo playsInline autoPlay ref={ref} />;
@@ -61,15 +61,13 @@ const CreateRoom = (props) => {
   const socketRef = useRef();
   let iceCandidates = [];
 
-  let roomID = "868808038275142";
+  let roomID = "868808038266836";
   const query = new URLSearchParams(useLocation().search);
   const role = query.get("role");
 
   const [peers, setPeers] = useState([]);
   const [isBroadcaster, setBroadcaster] = useState(false);
   const [isViewer, setViewer] = useState(false);
-
-
 
   useEffect(() => {
     if (role === "broadcaster") {
@@ -84,7 +82,7 @@ const CreateRoom = (props) => {
   console.log("peers: ", peers);
 
   useEffect(() => {
-    socketRef.current = io.connect('wss://vgps.vn')
+    socketRef.current = io.connect("wss://vgps.vn");
     // socketRef.current = io.connect("ws://localhost:8000");
 
     switch (role) {
@@ -182,14 +180,16 @@ const CreateRoom = (props) => {
           const { desc, viewerID, broadcasterID } = payload;
           const peer = createPeer();
           peer.onicecandidate = function (e) {
-            console.log(JSON.stringify("sending ice candidate: ", e));
             if (e.candidate) {
+              console.log(
+                JSON.stringify("sending ice candidate: ", e?.candidate)
+              );
               socketRef.current.emit(event.ICE_CANDIDATE_FROM_VIEWER, {
                 roomID,
                 ice: e.candidate,
               });
             }
-          }
+          };
 
           peersRef.current.push({
             peerID: broadcasterID,
@@ -204,9 +204,12 @@ const CreateRoom = (props) => {
           peer
             .setRemoteDescription(remoteDescription)
             .then(() => {
-              console.log("Set REMOTE description success new code");
+              console.log(
+                "Set REMOTE description success. REMOTE DESCRIPTION: ",
+                JSON.stringify(remoteDescription)
+              );
               if (iceCandidatesQueue) {
-                iceCandidatesQueue.forEach(candidate => {
+                iceCandidatesQueue.forEach((candidate) => {
                   peer
                     .addIceCandidate(candidate)
                     .then(() => {
@@ -219,12 +222,15 @@ const CreateRoom = (props) => {
               }
               iceCandidatesQueue = null;
               var mediaConstraints = {
-                'answerToReceiveAudio': true,
+                answerToReceiveAudio: true,
               };
               return peer.createAnswer(mediaConstraints);
             })
             .then((answer) => {
-              console.log("Set LOCAL description success");
+              console.log(
+                "Set LOCAL description success. ANSWER DESCRIPTION: ",
+                JSON.stringify(answer)
+              );
               return peer.setLocalDescription(answer);
             })
             .then(() => {
@@ -274,30 +280,10 @@ const CreateRoom = (props) => {
           urls: "stun:stun.stunprotocol.org",
         },
         {
-          urls: "turn:numb.viagenie.ca",
-          credential: "muazkh",
-          username: "webrtc@live.com",
+          url: "xxx",
+          username: "xxx",
+          credential: "xxx",
         },
-        {
-          url: 'turn:192.158.29.39:3478?transport=udp',
-          credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-          username: '28224511:1379330808'
-        },
-        {
-          url: 'turn:192.158.29.39:3478?transport=tcp',
-          credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-          username: '28224511:1379330808'
-        },
-        {
-          url: 'turn:turn.anyfirewall.com:443?transport=tcp',
-          credential: 'webrtc',
-          username: 'webrtc'
-        },
-        {
-          url: 'turn:turn.anyfirewall.com:443?transport=udp',
-          credential: 'webrtc',
-          username: 'webrtc'
-        }
       ],
     });
   }
@@ -309,8 +295,8 @@ const CreateRoom = (props) => {
   }
 
   function handleAddStream(event) {
-    console.info('onaddstream', event.stream);
-  };
+    console.info("onaddstream", event.stream);
+  }
 
   // trigger when create offer
   // ice candidate event will trigger in background
