@@ -28,6 +28,7 @@ const socketToRoom = new Map();
 
 
 io.on("connection", socket => {
+    console.log("have socket connection");
     socket.on(event.BROAD_CASTER_JOIN_ROOM, ({roomID}) => {
         console.log(`event ${event.BROAD_CASTER_JOIN_ROOM}`)
         if (broadcasters[roomID]) {
